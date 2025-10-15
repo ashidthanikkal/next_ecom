@@ -8,31 +8,42 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { authService } from "@/services/authService"
+import Cookies from "js-cookie"
+import { useRouter } from "next/navigation"
 
-const registerSchema = z.object({
-    username: z.string().min(2, "Name is required"),
+
+
+
+
+const loginSchema = z.object({
     email: z.string().email("Enter a valid email"),
     password: z.string().min(6, "Password must be at least 6 characters"),
-    role: z.string().optional(),
 })
 
-type RegisterForm = z.infer<typeof registerSchema>
+type LoginForm = z.infer<typeof loginSchema>
 
-export default function RegisterPage() {
-    const { register, handleSubmit, formState: { errors } } = useForm<RegisterForm>({
-        resolver: zodResolver(registerSchema),
+export default function LoginPage() {
+    const router = useRouter()
+    const { register, handleSubmit, formState: { errors } } = useForm<LoginForm>({
+        resolver: zodResolver(loginSchema),
     })
 
-    const onSubmit = async (data: { username: string, email: string; password: string, role?: string }) => {
+    const onSubmit = async (data: { email: string; password: string }) => {
         try {
-            const res = await authService.register(data)
-            console.log("Login success:", res.data)
+            const res = await authService.login(data)
 
             // store token in localStorage
-            localStorage.setItem("token", res.data.token)
+            //  localStorage.setItem("token", res.data.refreshToken)
+
+            Cookies.set("token", res.data.refreshToken, {
+                expires: 7,
+                secure: true,
+                sameSite: "lax",
+                path: "/",
+            });
 
             // redirect to dashboard
-            window.location.href = "/"
+            router.push("/dashboard")
         } catch (err: any) {
             console.error(err.response?.data || err.message)
             alert(err.response?.data?.message || "Login failed")
@@ -44,15 +55,8 @@ export default function RegisterPage() {
         <div className="flex h-screen items-center justify-center bg-gray-100">
             <Card className="w-full max-w-md p-6">
                 <CardContent>
-                    <h1 className="text-2xl font-bold mb-4">Register</h1>
+                    <h1 className="text-2xl font-bold mb-4">Admin Login</h1>
                     <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-                        <div className="flex flex-col gap-[5px]">
-                            <Label>Name</Label>
-                            <Input {...register("username")} />
-                            {errors.username && (
-                                <p className="text-sm text-red-500">{errors.username.message}</p>
-                            )}
-                        </div>
                         <div className="flex flex-col gap-[5px]">
                             <Label>Email</Label>
                             <Input type="email" {...register("email")} />
@@ -67,13 +71,20 @@ export default function RegisterPage() {
                                 <p className="text-sm text-red-500">{errors.password.message}</p>
                             )}
                         </div>
-                        <Button type="submit" className="w-full">Register</Button>
+                        <Button type="submit" className="w-full">Login</Button>
                     </form>
                 </CardContent>
-                <p className="text-sm text-gray-600 mt-2">
-                    Already have an account? <a href="/auth/login" className="text-blue-600">Login</a>
-                </p>
+                {/* <div className="flex justify-between mt-2">
+                    <p className="text-sm text-gray-600 mt-2">
+                        Don’t have an account? <a href="/auth/register" className="text-blue-600">Register</a>
+                    </p>
+
+                    <p className="text-sm text-gray-600 mt-2">
+                        <a href="/auth/forgot-password" className="text-blue-600">forgot Password.?</a>
+                    </p>
+                </div> */}
             </Card>
+
 
         </div>
     )
