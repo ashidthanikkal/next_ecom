@@ -5,8 +5,10 @@ import { connectDB } from "./config/db";
 import authRoutes from "./routes/authRoutes";
 import auth from "./middleware/authMiddleware";
 import { setupSwagger } from "./config/swagger";
-import Products from "./routes/productRoutes";
-import Users from "./routes/userRoutes";
+import productRoutes from "./routes/productRoutes";
+import userRoutes from "./routes/userRoutes";
+
+
 dotenv.config();
 
 const app = express();
@@ -26,10 +28,8 @@ app.use(cors({
 
 // routes
 app.use("/api/auth", authRoutes);
-app.use("/api/products", Products);
-app.use("/api/users", Users);
-
-
+app.use("/api/products", productRoutes);
+app.use("/api/users", userRoutes);
 
 
 

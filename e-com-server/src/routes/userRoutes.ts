@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { updateProfile,approveSeller, getProfile, getSellers, disapproveSeller } from "../controllers/userController";
+import { updateProfile,approveSeller, getProfile, getUsers, disapproveSeller } from "../controllers/userController";
 import auth from "../middleware/authMiddleware";
 
 const router = Router();
@@ -82,47 +82,66 @@ router.get("/profile", auth, getProfile);
  */
 router.put("/profile",auth,updateProfile);
 
-
 /**
  * @swagger
- * /api/users/sellers:
- *   get:
- *     summary: Get all sellers
- *     description: Returns a list of all users with the seller role.
+ * /api/users:
+ *   post:
+ *     summary: Get paginated list of users
+ *     description: Returns a paginated list of users with optional search, skip, and limit parameters.
  *     tags: [Users]
  *     security:
  *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               limit:
+ *                 type: integer
+ *                 example: 12
+ *                 description: Number of users to return per request
+ *               skip:
+ *                 type: integer
+ *                 example: 0
+ *                 description: Number of users to skip (for pagination)
+ *               searchingText:
+ *                 type: string
+ *                 example: ashid
+ *                 description: (Optional) Search by username or email
  *     responses:
  *       200:
- *         description: List of sellers fetched successfully
+ *         description: Paginated list of users fetched successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: array
- *               items:
- *                 type: object
- *                 properties:
- *                   _id:
- *                     type: string
- *                     example: 651d4e6b12c3a2b6f8c12a34
- *                   username:
- *                     type: string
- *                     example: seller123
- *                   email:
- *                     type: string
- *                     example: seller@example.com
- *                   phone:
- *                     type: string
- *                     example: +91-9876543210
- *                   role:
- *                     type: string
- *                     example: seller
+ *               type: object
+ *               properties:
+ *                 users:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                         example: 651d4e6b12c3a2b6f8c12a34
+ *                       username:
+ *                         type: string
+ *                         example: ashid
+ *                       email:
+ *                         type: string
+ *                         example: ashid@example.com
+ *                       role:
+ *                         type: string
+ *                         example: customer
  *       401:
  *         description: Unauthorized (no token provided)
  *       500:
  *         description: Server error
  */
-router.get("/sellers",auth, getSellers);
+router.post("/", auth, getUsers);
+
 
 /**
  * @swagger

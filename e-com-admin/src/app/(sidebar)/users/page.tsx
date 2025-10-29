@@ -35,6 +35,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Image from "next/image";
+import { userService } from "@/services/userService";
+import { useQuery } from "@tanstack/react-query";
+import { useUser } from "@/hooks/useUser";
 
 // 🧠 Types
 export type User = {
@@ -47,99 +50,7 @@ export type User = {
   image: string;
 };
 
-// 🧱 Sample Data
-export const usersData: User[] = [
-  {
-    id: "USR-001",
-    name: "John Doe",
-    email: "john@example.com",
-    role: "Admin",
-    status: "Active",
-    joinedAt: 1760677839612,
-    image: "/user_avatar.jpg",
-  },
-  {
-    id: "USR-002",
-    name: "Jane Smith",
-    email: "jane@example.com",
-    role: "Manager",
-    status: "Active",
-    joinedAt: 1760677839612,
-   image :"/user_avatar.jpg",
-  },
-  {
-    id: "USR-003",
-    name: "Michael Johnson",
-    email: "michael@example.com",
-    role: "Customer",
-    status: "Pending",
-    joinedAt: 1760677839612,
-    image: "/user_avatar.jpg",
-  },
-  {
-    id: "USR-004",
-    name: "Emily Davis",
-    email: "emily@example.com",
-    role: "Customer",
-    status: "Active",
-    joinedAt: 1760677839612,
-    image: "/user_avatar.jpg",
-  },
-  {
-    id: "USR-005",
-    name: "Robert Wilson",
-    email: "robert@example.com",
-    role: "Guest",
-    status: "Inactive",
-    joinedAt: 1760677839612,
-    image: "/user_avatar.jpg",
-  },
-  {
-    id: "USR-006",
-    name: "Sophia Martinez",
-    email: "sophia@example.com",
-    role: "Customer",
-    status: "Active",
-    joinedAt: 1760677839612,
-    image: "/user_avatar.jpg",
-  },
-  {
-    id: "USR-007",
-    name: "Liam Brown",
-    email: "liam@example.com",
-    role: "Manager",
-    status: "Active",
-    joinedAt: 1760677839612,
-    image: "/user_avatar.jpg",
-  },
-  {
-    id: "USR-008",
-    name: "Olivia Taylor",
-    email: "olivia@example.com",
-    role: "Customer",
-    status: "Inactive",
-    joinedAt: 1760677839612,
-    image: "/user_avatar.jpg",
-  },
-  {
-    id: "USR-009",
-    name: "Ethan Lee",
-    email: "ethan@example.com",
-    role: "Admin",
-    status: "Active",
-    joinedAt: 1760677839612,
-    image: "/user_avatar.jpg",
-  },
-  {
-    id: "USR-010",
-    name: "Ava White",
-    email: "ava@example.com",
-    role: "Customer",
-    status: "Pending",
-    joinedAt: 1760677839612,
-    image: "/user_avatar.jpg",
-  },
-];
+// 📦 Data
 
 // 🧮 Columns
 export const userColumns: ColumnDef<User>[] = [
@@ -201,7 +112,11 @@ export const userColumns: ColumnDef<User>[] = [
   {
     accessorKey: "email",
     header: "Email",
-    cell: ({ row }) => <span className="text-sm text-muted-foreground">{row.getValue("email")}</span>,
+    cell: ({ row }) => (
+      <span className="text-sm text-muted-foreground">
+        {row.getValue("email")}
+      </span>
+    ),
   },
   {
     accessorKey: "role",
@@ -267,9 +182,32 @@ export const userColumns: ColumnDef<User>[] = [
 // 🧭 Component
 const Users = () => {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  );
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+
+
+
+const { token } = useUser();
+
+
+  const fetchUsers = async () => {
+    const res = await userService.getUsers(
+      {},
+      token // pass token explicitly
+    );
+    return res.data;
+  };
+
+  const { data: usersData = [] } = useQuery<User[]>({
+    queryKey: ["users", sorting, columnFilters],
+    queryFn: fetchUsers,
+    enabled: !!token, // only run if token is available
+  });
+
 
   const table = useReactTable({
     data: usersData,
@@ -296,7 +234,9 @@ const Users = () => {
         <Input
           placeholder="Filter users..."
           value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
-          onChange={(e) => table.getColumn("name")?.setFilterValue(e.target.value)}
+          onChange={(e) =>
+            table.getColumn("name")?.setFilterValue(e.target.value)
+          }
           className="max-w-sm"
         />
         <DropdownMenu>
@@ -324,6 +264,7 @@ const Users = () => {
       </div>
 
       <div className="overflow-hidden rounded-md border">
+        {JSON.stringify(usersData)}
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
@@ -332,7 +273,10 @@ const Users = () => {
                   <TableHead key={header.id}>
                     {header.isPlaceholder
                       ? null
-                      : flexRender(header.column.columnDef.header, header.getContext())}
+                      : flexRender(
+                          header.column.columnDef.header,
+                          header.getContext()
+                        )}
                   </TableHead>
                 ))}
               </TableRow>
@@ -341,17 +285,26 @@ const Users = () => {
           <TableBody>
             {table.getRowModel().rows.length ? (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id} data-state={row.getIsSelected() && "selected"}>
+                <TableRow
+                  key={row.id}
+                  data-state={row.getIsSelected() && "selected"}
+                >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={userColumns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={userColumns.length}
+                  className="h-24 text-center"
+                >
                   No results.
                 </TableCell>
               </TableRow>

@@ -14,6 +14,7 @@ export const setupSwagger = (app: Express) => {
       servers: [
         {
           url: "http://localhost:5000", // change for production
+           description: "Local server"
         },
       ],
       components: {

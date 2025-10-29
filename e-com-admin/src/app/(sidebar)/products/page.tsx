@@ -35,6 +35,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import Image from "next/image";
+import { useRouter } from "next/navigation";
 
 export const data: Products[] = [
   {
@@ -295,6 +296,11 @@ export const columns: ColumnDef<Products>[] = [
     enableHiding: false,
     cell: ({ row }) => {
       const product = row.original;
+      const router = useRouter();
+
+      const handleEditProduct = (productId: string) => {
+        router.push(`/products/${productId}`);
+      };
 
       return (
         <DropdownMenu>
@@ -311,7 +317,13 @@ export const columns: ColumnDef<Products>[] = [
             >
               Copy Product ID
             </DropdownMenuItem>
-            <DropdownMenuItem>Edit Product</DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => {
+                handleEditProduct(product.SKUid);
+              }}
+            >
+              Edit Product
+            </DropdownMenuItem>
             <DropdownMenuItem>Delete Product</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -321,6 +333,7 @@ export const columns: ColumnDef<Products>[] = [
 ];
 
 const Products = () => {
+  const router = useRouter();
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -350,44 +363,53 @@ const Products = () => {
 
   return (
     <div className="w-full">
-      <div className="flex items-center py-4">
+      <div className="flex items-center justify-between py-4">
         <Input
           placeholder="Filter Products..."
-          value={
-            (table.getColumn("name")?.getFilterValue() as string) ??
-            ""
-          }
+          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
           onChange={(event) =>
             table.getColumn("name")?.setFilterValue(event.target.value)
           }
           className="max-w-sm"
         />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="outline" className="ml-auto">
-              Columns <ChevronDown />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            {table
-              .getAllColumns()
-              .filter((column) => column.getCanHide())
-              .map((column) => {
-                return (
-                  <DropdownMenuCheckboxItem
-                    key={column.id}
-                    className="capitalize"
-                    checked={column.getIsVisible()}
-                    onCheckedChange={(value) =>
-                      column.toggleVisibility(!!value)
-                    }
-                  >
-                    {column.id}
-                  </DropdownMenuCheckboxItem>
-                );
-              })}
-          </DropdownMenuContent>
-        </DropdownMenu>
+        <div className="flex items-center space-x-2">
+          <Button
+            variant="default"
+            size="default"
+            className="cursor-pointer"
+            onClick={() => {
+              router.push("/products/product-create");
+            }}
+          >
+            Create Product
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="ml-auto">
+                Columns <ChevronDown />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {table
+                .getAllColumns()
+                .filter((column) => column.getCanHide())
+                .map((column) => {
+                  return (
+                    <DropdownMenuCheckboxItem
+                      key={column.id}
+                      className="capitalize"
+                      checked={column.getIsVisible()}
+                      onCheckedChange={(value) =>
+                        column.toggleVisibility(!!value)
+                      }
+                    >
+                      {column.id}
+                    </DropdownMenuCheckboxItem>
+                  );
+                })}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
       <div className="overflow-hidden rounded-md border">
         <Table>

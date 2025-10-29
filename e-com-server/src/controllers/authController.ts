@@ -272,3 +272,4 @@ export const resetPassword = async (req: Request, res: Response) => {
 
   res.json({ message: "Password changed successfully" });
 };
+
