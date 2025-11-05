@@ -11,7 +11,7 @@ export interface IAddress {
 }
 
 export interface ICartItem {
-  productId: Types.ObjectId;  // FIX: use ObjectId instead of string
+  productId: Types.ObjectId; // FIX: use ObjectId instead of string
   quantity: number;
 }
 
@@ -29,6 +29,7 @@ export interface IUser extends Document {
   wishlist: Types.ObjectId[];
   createdAt: Date;
   updatedAt: Date;
+  status: number;
 }
 
 const addressSchema = new Schema<IAddress>({
@@ -53,11 +54,20 @@ const userSchema = new Schema<IUser>(
     password: { type: String, required: true },
     refreshTokens: [{ type: String }],
     phone: { type: String },
-    role: { type: String, enum: ["customer", "seller", "admin"], default: "customer" },
+    role: {
+      type: String,
+      enum: ["customer", "seller", "admin"],
+      default: "customer",
+    },
     sellerApproved: { type: Boolean, default: false },
     addresses: [addressSchema],
     cart: [cartItemSchema],
     wishlist: [{ type: Schema.Types.ObjectId, ref: "Product" }],
+    status: {
+      type: Number,
+      enum: [0, 1, 2], // 0 = inactive, 1 = active, 2 = deleted
+      default: 1,
+    },
   },
   { timestamps: true }
 );

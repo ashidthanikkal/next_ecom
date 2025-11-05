@@ -1,9 +1,15 @@
 import { Router } from "express";
-import { updateProfile,approveSeller, getProfile, getUsers, disapproveSeller } from "../controllers/userController";
+import {
+  updateProfile,
+  approveSeller,
+  getProfile,
+  getUsers,
+  disapproveSeller,
+  userStatusChange,
+} from "../controllers/userController";
 import auth from "../middleware/authMiddleware";
 
 const router = Router();
-
 
 /**
  * @swagger
@@ -80,7 +86,7 @@ router.get("/profile", auth, getProfile);
  *       500:
  *         description: Internal server error
  */
-router.put("/profile",auth,updateProfile);
+router.put("/profile", auth, updateProfile);
 
 /**
  * @swagger
@@ -141,7 +147,6 @@ router.put("/profile",auth,updateProfile);
  *         description: Server error
  */
 router.post("/", auth, getUsers);
-
 
 /**
  * @swagger
@@ -230,8 +235,83 @@ router.put("/sellers/:id/approve", auth, approveSeller);
  */
 router.put("/sellers/:id/disapprove", auth, disapproveSeller);
 
+//for admin
 
-
-
+/**
+ * @swagger
+ * /api/users/{id}:
+ *   put:
+ *     summary: Change user status
+ *     description: Change the status of a user (0 = inactive, 1 = active, 2 = deleted).
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               status:
+ *                 type: integer
+ *                 enum: [0, 1, 2]
+ *                 description: 0 = inactive, 1 = active, 2 = deleted
+ *             example:
+ *               status: 1
+ *     responses:
+ *       200:
+ *         description: User status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *               example:
+ *                 msg: User status updated successfully
+ *       400:
+ *         description: Invalid status value
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *               example:
+ *                 msg: Invalid status value
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *               example:
+ *                 msg: User not found
+ *       500:
+ *         description: Internal server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *               example:
+ *                 error: Something went wrong
+ */
+router.put("/:id", auth, userStatusChange);
 
 export default router;

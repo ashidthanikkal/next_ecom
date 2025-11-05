@@ -36,9 +36,8 @@ import {
 } from "@/components/ui/table";
 import Image from "next/image";
 import { userService } from "@/services/userService";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useUser } from "@/hooks/useUser";
-
 
 // 🧠 Types
 export type User = {
@@ -51,9 +50,8 @@ export type User = {
   updatedAt: string;
   phone?: string;
   image: string;
-  status: "Active" | "Inactive" | "Pending";
+  status: number;
 };
-
 
 // 🧮 Columns
 export const userColumns: ColumnDef<User>[] = [
@@ -129,18 +127,18 @@ export const userColumns: ColumnDef<User>[] = [
     accessorKey: "status",
     header: "Status",
     cell: ({ row }) => {
-      const status = row.getValue("status") as string;
+      const status = row.getValue("status");
       const color =
-        status === "Active"
+        status === 1
           ? "bg-green-100 text-green-700"
-          : status === "Inactive"
+          : status === 0
           ? "bg-gray-100 text-gray-700"
           : "bg-yellow-100 text-yellow-700";
       return (
         <span
           className={`px-2 py-1 text-xs font-semibold rounded-full ${color}`}
         >
-          {status}Active 
+          {status === 1 ? "Active" : status === 0 ? "Inactive" : "Deleted"}
         </span>
       );
     },
@@ -159,6 +157,27 @@ export const userColumns: ColumnDef<User>[] = [
     enableHiding: false,
     cell: ({ row }) => {
       const user = row.original;
+      const { token } = useUser(); // hook inside cell (React hooks allowed here because it's rendered as a component)
+      const queryClient = useQueryClient();
+      const [isLoading, setIsLoading] = React.useState(false);
+
+      const handleStatusChange = async () => {
+        if (!token) return alert("No token found");
+        setIsLoading(true);
+        try {
+          // Toggle status: if 1 -> 0 (deactivate), if 0 -> 1 (activate)
+          const newStatus = user.status === 1 ? 0 : 1;
+          console.log(newStatus, "newStatusnewStatus");
+
+          await userService.userStatusChange(user._id, newStatus, token);
+          await queryClient.invalidateQueries({ queryKey: ["users"] }); // Refresh data after update
+        } catch (err) {
+          console.error("Failed to change status", err);
+        } finally {
+          setIsLoading(false);
+        }
+      };
+
       return (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
@@ -168,12 +187,16 @@ export const userColumns: ColumnDef<User>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
+
             <DropdownMenuItem
               onClick={() => navigator.clipboard.writeText(user.email)}
             >
               Copy Email
             </DropdownMenuItem>
-            <DropdownMenuItem>Deactivate User</DropdownMenuItem>
+
+            <DropdownMenuItem onClick={handleStatusChange} disabled={isLoading}>
+              {user.status === 1 ? "Deactivate User" : "Activate User"}
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       );
@@ -236,7 +259,9 @@ const Users = () => {
       <div className="flex items-center py-4">
         <Input
           placeholder="Filter users..."
-          value={(table.getColumn("username")?.getFilterValue() as string) ?? ""}
+          value={
+            (table.getColumn("username")?.getFilterValue() as string) ?? ""
+          }
           onChange={(e) =>
             table.getColumn("username")?.setFilterValue(e.target.value)
           }
@@ -272,9 +297,7 @@ const Users = () => {
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
-                  
                   <TableHead key={header.id}>
-
                     {header.isPlaceholder
                       ? null
                       : flexRender(

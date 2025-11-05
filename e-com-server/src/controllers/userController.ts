@@ -131,5 +131,23 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+// statuschange for admin and user
+export const userStatusChange = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { status } = req.body; // expecting status in body
+    const user = await User.findById(id);
+    if (!user) {
+      return res.status(404).json({ msg: "User not found" });
+    }
+    user.status = status;
+    await user.save();
+    res.json({ msg: "User status updated successfully" });
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
+  }
+};
+ 
+
 
 

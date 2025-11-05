@@ -7,4 +7,15 @@ export const userService = {
         Authorization: `Bearer ${token}`,
       },
     }),
+
+  userStatusChange: (userId: string, status: number, token: string) =>
+    api.put(
+      `/users/${userId}`,
+      { userId, status },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    ),
 };
