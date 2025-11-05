@@ -39,18 +39,21 @@ import { userService } from "@/services/userService";
 import { useQuery } from "@tanstack/react-query";
 import { useUser } from "@/hooks/useUser";
 
+
 // 🧠 Types
 export type User = {
-  id: string;
-  name: string;
+  _id: string;
+  username: string;
   email: string;
-  role: "Admin" | "Manager" | "Customer" | "Guest";
-  status: "Active" | "Inactive" | "Pending";
-  joinedAt: number;
+  role: string;
+  sellerApproved: boolean;
+  createdAt: string;
+  updatedAt: string;
+  phone?: string;
   image: string;
+  status: "Active" | "Inactive" | "Pending";
 };
 
-// 📦 Data
 
 // 🧮 Columns
 export const userColumns: ColumnDef<User>[] = [
@@ -78,12 +81,12 @@ export const userColumns: ColumnDef<User>[] = [
     enableHiding: false,
   },
   {
-    accessorKey: "id",
+    accessorKey: "_id",
     header: "User ID",
     size: 80,
   },
   {
-    accessorKey: "name",
+    accessorKey: "username",
     header: ({ column }) => (
       <Button
         variant="ghost"
@@ -98,13 +101,13 @@ export const userColumns: ColumnDef<User>[] = [
       return (
         <div className="flex items-center gap-2">
           <Image
-            src={user.image}
-            alt={user.name}
+            src={user.image || "/user_avatar.jpg"}
+            alt={user.username}
             width={40}
             height={40}
             className="rounded-full object-cover"
           />
-          <span className="font-medium">{user.name}</span>
+          <span className="font-medium">{user.username}</span>
         </div>
       );
     },
@@ -137,16 +140,16 @@ export const userColumns: ColumnDef<User>[] = [
         <span
           className={`px-2 py-1 text-xs font-semibold rounded-full ${color}`}
         >
-          {status}
+          {status}Active 
         </span>
       );
     },
   },
   {
-    accessorKey: "joinedAt",
+    accessorKey: "createdAt",
     header: "Joined",
     cell: ({ row }) => {
-      const date = new Date(row.getValue("joinedAt"));
+      const date = new Date(row.getValue("createdAt"));
       const formatted = date.toISOString().split("T")[0];
       return <div>{formatted}</div>;
     },
@@ -170,7 +173,6 @@ export const userColumns: ColumnDef<User>[] = [
             >
               Copy Email
             </DropdownMenuItem>
-            <DropdownMenuItem>View Profile</DropdownMenuItem>
             <DropdownMenuItem>Deactivate User</DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -189,25 +191,26 @@ const Users = () => {
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
-
-
-const { token } = useUser();
-
+  const { token } = useUser();
 
   const fetchUsers = async () => {
     const res = await userService.getUsers(
-      {},
-      token // pass token explicitly
+      { skip: 0, limit: 10, searchingText: "" },
+      token || ""
     );
-    return res.data;
+    return res.data.users;
   };
 
-  const { data: usersData = [] } = useQuery<User[]>({
-    queryKey: ["users", sorting, columnFilters],
+  const {
+    data: usersData = [],
+    refetch,
+    isLoading,
+  } = useQuery<User[]>({
+    queryKey: ["users"],
     queryFn: fetchUsers,
-    enabled: !!token, // only run if token is available
+    enabled: !!token, // only run if token is available,
+    refetchOnWindowFocus: false,
   });
-
 
   const table = useReactTable({
     data: usersData,
@@ -233,9 +236,9 @@ const { token } = useUser();
       <div className="flex items-center py-4">
         <Input
           placeholder="Filter users..."
-          value={(table.getColumn("name")?.getFilterValue() as string) ?? ""}
+          value={(table.getColumn("username")?.getFilterValue() as string) ?? ""}
           onChange={(e) =>
-            table.getColumn("name")?.setFilterValue(e.target.value)
+            table.getColumn("username")?.setFilterValue(e.target.value)
           }
           className="max-w-sm"
         />
@@ -264,13 +267,14 @@ const { token } = useUser();
       </div>
 
       <div className="overflow-hidden rounded-md border">
-        {JSON.stringify(usersData)}
         <Table>
           <TableHeader>
             {table.getHeaderGroups().map((headerGroup) => (
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => (
+                  
                   <TableHead key={header.id}>
+
                     {header.isPlaceholder
                       ? null
                       : flexRender(

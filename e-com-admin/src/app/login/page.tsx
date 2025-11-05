@@ -36,7 +36,7 @@ export default function LoginPage() {
       // store token in localStorage
       //  localStorage.setItem("token", res.data.refreshToken)
 
-      Cookies.set("token", res.data.refreshToken, {
+      Cookies.set("token", res.data.accessToken, {
         expires: 7,
         secure: true,
         sameSite: "lax",

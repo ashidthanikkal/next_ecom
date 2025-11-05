@@ -1,8 +1,8 @@
 import { api } from "@/lib/api";
 
 export const userService = {
-  getUsers: (body: Record<string, any>, token: string) =>
-    api.post("/users", body, {
+  getUsers: (data: { skip: 0; limit: 10; searchingText: "" }, token: string) =>
+    api.post("/users", data, {
       headers: {
         Authorization: `Bearer ${token}`,
       },

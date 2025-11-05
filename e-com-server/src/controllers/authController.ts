@@ -16,7 +16,7 @@ export const generateAccessToken = (user: IUser): string => {
   return jwt.sign(
     { id: user._id, role: user.role }, // include role here
     process.env.JWT_SECRET as string,
-    { expiresIn: "15m" } // short-lived
+    { expiresIn: "1d" } // short-lived
   );
 };
 
