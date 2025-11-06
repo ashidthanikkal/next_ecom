@@ -1,7 +1,7 @@
 import { api } from "@/lib/api";
 
 export const userService = {
-  getUsers: (data: { skip: 0; limit: 10; searchingText: "" }, token: string) =>
+  getUsers: (data: { skip: number; limit: number; searchingText: string }, token: string) =>
     api.post("/users", data, {
       headers: {
         Authorization: `Bearer ${token}`,
