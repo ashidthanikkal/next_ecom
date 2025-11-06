@@ -90,13 +90,13 @@ export const disapproveSeller = async (req: Request, res: Response) => {
 export const getUsers = async (req: Request, res: Response): Promise<void> => {
   try {
     // Extract pagination and search parameters from body
-    const { limit = 12, skip = 0, searchingText = "" } = req.body;
+    const { limit, skip, searchingText } = req.body;
 
     // Convert to numbers (in case they come as strings)
     const limitNumber = Number(limit);
     const skipNumber = Number(skip);
 
-    // Optional search filter (by username or email for example)
+    // Build dynamic search filter
     const filter =
       searchingText.trim() !== ""
         ? {
@@ -107,29 +107,26 @@ export const getUsers = async (req: Request, res: Response): Promise<void> => {
           }
         : {};
 
-    // Get total count for pagination info
-    const totalUsers = await User.countDocuments(filter);
+    // 1️⃣ Get total count for pagination
+    const total = await User.countDocuments(filter);
 
-    // Fetch paginated users (excluding sensitive fields)
+    // 2️⃣ Fetch paginated + filtered users
     const users: IUser[] = await User.find(filter)
       .select("-password -refreshTokens")
       .skip(skipNumber)
       .limit(limitNumber)
-      .sort({ createdAt: -1 }); // latest users first
+      .sort({ createdAt: -1 }); // latest first
 
+    // 3️⃣ Return both users and total
     res.json({
       users,
-      // pagination: {
-      //   total: totalUsers,
-      //   skip: skipNumber,
-      //   limit: limitNumber,
-      //   totalPages: Math.ceil(totalUsers / limitNumber),
-      // },
+      total, // 👈 add this
     });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
   }
 };
+
 
 // statuschange for admin and user
 export const userStatusChange = async (req: Request, res: Response) => {

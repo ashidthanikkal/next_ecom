@@ -9,7 +9,6 @@ import {
   flexRender,
   getCoreRowModel,
   getFilteredRowModel,
-  getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
 } from "@tanstack/react-table";
@@ -157,7 +156,7 @@ export const userColumns: ColumnDef<User>[] = [
     enableHiding: false,
     cell: ({ row }) => {
       const user = row.original;
-      const { token } = useUser(); // hook inside cell (React hooks allowed here because it's rendered as a component)
+      const { token } = useUser();
       const queryClient = useQueryClient();
       const [isLoading, setIsLoading] = React.useState(false);
 
@@ -165,12 +164,9 @@ export const userColumns: ColumnDef<User>[] = [
         if (!token) return alert("No token found");
         setIsLoading(true);
         try {
-          // Toggle status: if 1 -> 0 (deactivate), if 0 -> 1 (activate)
           const newStatus = user.status === 1 ? 0 : 1;
-          console.log(newStatus, "newStatusnewStatus");
-
           await userService.userStatusChange(user._id, newStatus, token);
-          await queryClient.invalidateQueries({ queryKey: ["users"] }); // Refresh data after update
+          await queryClient.invalidateQueries({ queryKey: ["users"] });
         } catch (err) {
           console.error("Failed to change status", err);
         } finally {
@@ -187,13 +183,11 @@ export const userColumns: ColumnDef<User>[] = [
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
             <DropdownMenuLabel>Actions</DropdownMenuLabel>
-
             <DropdownMenuItem
               onClick={() => navigator.clipboard.writeText(user.email)}
             >
               Copy Email
             </DropdownMenuItem>
-
             <DropdownMenuItem onClick={handleStatusChange} disabled={isLoading}>
               {user.status === 1 ? "Deactivate User" : "Activate User"}
             </DropdownMenuItem>
@@ -206,6 +200,9 @@ export const userColumns: ColumnDef<User>[] = [
 
 // 🧭 Component
 const Users = () => {
+  const [pageIndex, setPageIndex] = React.useState(0);
+  const [pageSize, setPageSize] = React.useState(3);
+
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
     []
@@ -213,60 +210,74 @@ const Users = () => {
   const [columnVisibility, setColumnVisibility] =
     React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
+  const [searchText, setSearchText] = React.useState("");
+
 
   const { token } = useUser();
 
+  // Fetcher with server-side pagination
   const fetchUsers = async () => {
+    const skip = pageIndex * pageSize;
     const res = await userService.getUsers(
-      { skip: 0, limit: 10, searchingText: "" },
+      { skip, limit: pageSize, searchingText: searchText },
       token || ""
     );
-    return res.data.users;
+    return res.data; // expecting { users, total }
   };
 
-  const {
-    data: usersData = [],
-    refetch,
-    isLoading,
-  } = useQuery<User[]>({
-    queryKey: ["users"],
+  const { data, isLoading,refetch } = useQuery({
+    queryKey: ["users", pageIndex, pageSize,searchText],
     queryFn: fetchUsers,
-    enabled: !!token, // only run if token is available,
+    enabled: !!token,
     refetchOnWindowFocus: false,
   });
+
+  const usersData = data?.users ?? [];
+  const totalUsers = data?.total;
 
   const table = useReactTable({
     data: usersData,
     columns: userColumns,
+    pageCount: Math.ceil(totalUsers / pageSize),
+    manualPagination: true,
+    state: {
+      sorting,
+      columnFilters,
+      columnVisibility,
+      rowSelection,
+      pagination: { pageIndex, pageSize },
+    },
+    onPaginationChange: (updater) => {
+      const newState =
+        typeof updater === "function"
+          ? updater({ pageIndex, pageSize })
+          : updater;
+      setPageIndex(newState.pageIndex);
+      setPageSize(newState.pageSize);
+    },
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: setRowSelection,
     getCoreRowModel: getCoreRowModel(),
     getFilteredRowModel: getFilteredRowModel(),
-    getPaginationRowModel: getPaginationRowModel(),
     getSortedRowModel: getSortedRowModel(),
-    state: {
-      sorting,
-      columnFilters,
-      columnVisibility,
-      rowSelection,
-    },
   });
 
   return (
     <div className="w-full">
+      {/* 🔍 Filter and Columns */}
       <div className="flex items-center py-4">
         <Input
-          placeholder="Filter users..."
-          value={
-            (table.getColumn("username")?.getFilterValue() as string) ?? ""
-          }
-          onChange={(e) =>
-            table.getColumn("username")?.setFilterValue(e.target.value)
-          }
+          placeholder="Search users..."
+          value={searchText}
+          onChange={(e) => {
+            setSearchText(e.target.value);
+            setPageIndex(0); // reset to first page on new search
+          }}
           className="max-w-sm"
         />
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" className="ml-auto">
@@ -291,6 +302,7 @@ const Users = () => {
         </DropdownMenu>
       </div>
 
+      {/* 🧾 Table */}
       <div className="overflow-hidden rounded-md border">
         <Table>
           <TableHeader>
@@ -310,7 +322,16 @@ const Users = () => {
             ))}
           </TableHeader>
           <TableBody>
-            {table.getRowModel().rows.length ? (
+            {isLoading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={userColumns.length}
+                  className="h-24 text-center"
+                >
+                  Loading...
+                </TableCell>
+              </TableRow>
+            ) : usersData.length ? (
               table.getRowModel().rows.map((row) => (
                 <TableRow
                   key={row.id}
@@ -340,25 +361,25 @@ const Users = () => {
         </Table>
       </div>
 
-      <div className="flex items-center justify-end space-x-2 py-4">
-        <div className="text-muted-foreground flex-1 text-sm">
-          {table.getFilteredSelectedRowModel().rows.length} of{" "}
-          {table.getFilteredRowModel().rows.length} row(s) selected.
+      {/* 📄 Pagination */}
+      <div className="flex items-center justify-between space-x-2 py-4">
+        <div className="text-sm text-muted-foreground">
+          Page {pageIndex + 1} of {Math.ceil(totalUsers / pageSize) || 1}
         </div>
         <div className="space-x-2">
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.previousPage()}
-            disabled={!table.getCanPreviousPage()}
+            onClick={() => setPageIndex((old) => Math.max(old - 1, 0))}
+            disabled={pageIndex === 0 || isLoading}
           >
             Previous
           </Button>
           <Button
             variant="outline"
             size="sm"
-            onClick={() => table.nextPage()}
-            disabled={!table.getCanNextPage()}
+            onClick={() => setPageIndex((old) => old + 1)}
+            disabled={pageIndex + 1 >= Math.ceil(totalUsers / pageSize) || isLoading}
           >
             Next
           </Button>
