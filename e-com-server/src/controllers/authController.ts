@@ -3,29 +3,9 @@ import User, { IUser } from "../models/User";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import nodemailer from "nodemailer";
+import createToken from "../utils/createToken";
 const crypto = require("crypto");
 
-
-// export const generateAccessToken = (userId: string): string => {
-//   return jwt.sign({ id: userId }, process.env.JWT_SECRET as string, {
-//     expiresIn: "15m", // short-lived
-//   });
-// };
-
-export const generateAccessToken = (user: IUser): string => {
-  return jwt.sign(
-    { id: user._id, role: user.role }, // include role here
-    process.env.JWT_SECRET as string,
-    { expiresIn: "1d" } // short-lived
-  );
-};
-
-
-export const generateRefreshToken = (userId: string): string => {
-  return jwt.sign({ id: userId }, process.env.JWT_REFRESH_SECRET as string, {
-    expiresIn: "7d", // long-lived
-  });
-};
 
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -44,7 +24,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       password: hashedPassword,
       role: role === "seller" ? "seller" : "customer", // force to either seller/customer
       sellerApproved: role === "seller" ? false : undefined, // pending approval
-      refreshTokens: [],
     });
     await newUser.save();
 
@@ -59,9 +38,6 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     res.status(500).json({ error: (err as Error).message });
   }
 };
-
-
-
 
 export const login = async (req: Request, res: Response): Promise<void> => {
   try {
@@ -79,49 +55,18 @@ export const login = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-      // 🚫 Block seller login if not approved by admin
+    // 🚫 Block seller login if not approved by admin
     if (user.role === "seller" && !user.sellerApproved) {
       res.status(403).json({ msg: "Seller account not approved by admin" });
       return;
     }
 
+    createToken(res, user);
 
-    const accessToken = generateAccessToken(user);
-    const refreshToken = generateRefreshToken(user._id.toString());
+   res.status(200).json({ msg: "Login successful" });
 
-    // Save refresh token in DB
-    user.refreshTokens.push(refreshToken);
-    await user.save();
-
-    res.json({ accessToken, refreshToken });
   } catch (err) {
     res.status(500).json({ error: (err as Error).message });
-  }
-};
-
-export const refresh = async (req: Request, res: Response): Promise<void> => {
-  const { token } = req.body;
-  if (!token) {
-    res.status(401).json({ msg: "No refresh token provided" });
-    return;
-  }
-
-  try {
-    const decoded = jwt.verify(
-      token,
-      process.env.JWT_REFRESH_SECRET as string
-    ) as { id: string };
-
-    const user = await User.findById(decoded.id);
-    if (!user || !user.refreshTokens.includes(token)) {
-      res.status(403).json({ msg: "Invalid refresh token" });
-      return;
-    }
-
-    const newAccessToken = generateAccessToken(user);
-    res.json({ accessToken: newAccessToken });
-  } catch (err) {
-    res.status(403).json({ msg: "Invalid or expired refresh token" });
   }
 };
 
@@ -144,13 +89,34 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Remove refresh token from DB
-    user.refreshTokens = user.refreshTokens.filter((rt) => rt !== token);
-    await user.save();
-
+    // remove from cookie
+    res.clearCookie('jwt',{
+      httpOnly: true,
+      secure: process.env.NODE_ENV !== "development",
+      sameSite: "strict",
+    });
+    
     res.json({ msg: "Logged out successfully" });
   } catch (err) {
     res.status(400).json({ msg: "Invalid token" });
+  }
+};
+
+export const getCurrentUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = (req as any).user.id;
+    const user: IUser | null = await User.findById(userId).select("-password");
+
+    if (!user) {
+      res.status(404).json({ msg: "User not found" });
+      return;
+    }
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: (err as Error).message });
   }
 };
 
@@ -272,4 +238,3 @@ export const resetPassword = async (req: Request, res: Response) => {
 
   res.json({ message: "Password changed successfully" });
 };
-

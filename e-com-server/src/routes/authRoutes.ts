@@ -1,13 +1,14 @@
 import { Router } from "express";
 import {
-  refresh,
   logout,
   sendOTP,
   verifyOTP,
   resetPassword,
   register,
   login,
+  getCurrentUser,
 } from "../controllers/authController";
+import auth from "../middleware/authMiddleware";
 
 const router = Router();
 
@@ -58,7 +59,6 @@ const router = Router();
  */
 router.post("/register", register);
 
-
 /**
  * @swagger
  * /api/auth/login:
@@ -105,29 +105,6 @@ router.post("/login", login);
 
 /**
  * @swagger
- * /api/auth/refresh:
- *   post:
- *     summary: Refresh access token
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - token
- *             properties:
- *               token:
- *                 type: string
- *     responses:
- *       200:
- *         description: New access token
- */
-router.post("/refresh", refresh);
-
-/**
- * @swagger
  * /api/auth/logout:
  *   post:
  *     summary: Logout user (invalidate refresh token)
@@ -148,6 +125,47 @@ router.post("/refresh", refresh);
  *         description: Logout successful
  */
 router.post("/logout", logout);
+
+/**
+ * @swagger
+ * /api/auth/me:
+ *   get:
+ *     summary: Get current authenticated user
+ *     description: Returns the details of the logged-in user (without password).
+ *     tags:
+ *       - Users
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Successfully fetched user information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/User'
+ *       404:
+ *         description: User not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 msg:
+ *                   type: string
+ *                   example: User not found
+ *       500:
+ *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: Internal server error
+ */
+router.get("/me", auth, getCurrentUser);
+
 
 /**
  * @swagger
@@ -228,6 +246,8 @@ router.post("/verify-otp", verifyOTP);
  *         description: Password changed successfully
  */
 router.post("/reset-password", resetPassword);
+
+
 
 
 
